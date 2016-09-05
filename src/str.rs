@@ -21,13 +21,13 @@
 macro_rules! tag_s (
   ($i:expr, $tag: expr) => (
     {
-      let res: $crate::IResult<_,_> = if $tag.len() > $i.len() {
+      let input: &str = $i;
+      let res: $crate::IResult<_,_> = if $tag.len() > input.len() {
         $crate::IResult::Incomplete($crate::Needed::Size($tag.len()))
-      //} else if &$i[0..$tag.len()] == $tag {
-      } else if ($i).starts_with($tag) {
-        $crate::IResult::Done(&$i[$tag.len()..], &$i[0..$tag.len()])
+      } else if (input).starts_with($tag) {
+        $crate::IResult::Done(&input[$tag.len()..], &input[0..$tag.len()])
       } else {
-        $crate::IResult::Error($crate::Err::Position($crate::ErrorKind::TagStr, $i))
+        $crate::IResult::Error(error_position!($crate::ErrorKind::TagStr, input))
       };
       res
     }
@@ -90,20 +90,21 @@ macro_rules! tag_nocase_s (
 macro_rules! take_s (
   ($i:expr, $count:expr) => (
     {
+      let input: &str = $i;
       let cnt = $count as usize;
-      let res: $crate::IResult<_,_> = if $i.chars().count() < cnt {
+      let res: $crate::IResult<_,_> = if input.chars().count() < cnt {
         $crate::IResult::Incomplete($crate::Needed::Size(cnt))
       } else {
-        let mut offset = $i.len();
+        let mut offset = input.len();
         let mut count = 0;
-        for (o, _) in $i.char_indices() {
+        for (o, _) in input.char_indices() {
           if count == cnt {
             offset = o;
             break;
           }
           count += 1;
         }
-        $crate::IResult::Done(&$i[offset..], &$i[..offset])
+        $crate::IResult::Done(&input[offset..], &input[..offset])
       };
       res
     }
@@ -128,22 +129,25 @@ macro_rules! take_s (
 macro_rules! is_not_s (
   ($input:expr, $arr:expr) => (
     {
+      let input: &str = $input;
+
       use std::collections::HashSet;
       let set: HashSet<char> = $arr.chars().collect();
-      let mut offset = $input.len();
-      for (o, c) in $input.char_indices() {
+      let mut offset = input.len();
+      for (o, c) in input.char_indices() {
         if set.contains(&c) {
           offset = o;
           break;
         }
       }
-      if offset == 0 {
-        $crate::IResult::Error($crate::Err::Position($crate::ErrorKind::IsAStr,$input))
-      } else if offset < $input.len() {
-        $crate::IResult::Done(&$input[offset..], &$input[..offset])
+      let res: $crate::IResult<_,_> = if offset == 0 {
+        $crate::IResult::Error(error_position!($crate::ErrorKind::IsAStr,input))
+      } else if offset < input.len() {
+        $crate::IResult::Done(&input[offset..], &input[..offset])
       } else {
-        $crate::IResult::Done("", $input)
-      }
+        $crate::IResult::Done(&input[input.len()..], input)
+      };
+      res
     }
   );
 );
@@ -168,22 +172,25 @@ macro_rules! is_not_s (
 macro_rules! is_a_s (
   ($input:expr, $arr:expr) => (
     {
+      let input: &str = $input;
+
       use std::collections::HashSet;
       let set: HashSet<char> = $arr.chars().collect();
-      let mut offset = $input.len();
-      for (o, c) in $input.char_indices() {
+      let mut offset = input.len();
+      for (o, c) in input.char_indices() {
         if !set.contains(&c) {
           offset = o;
           break;
         }
       }
-      if offset == 0 {
-        $crate::IResult::Error($crate::Err::Position($crate::ErrorKind::IsAStr,$input))
-      } else if offset < $input.len() {
-        $crate::IResult::Done(&$input[offset..], &$input[..offset])
+      let res: $crate::IResult<_,_> = if offset == 0 {
+        $crate::IResult::Error(error_position!($crate::ErrorKind::IsAStr,input))
+      } else if offset < input.len() {
+        $crate::IResult::Done(&input[offset..], &input[..offset])
       } else {
-        $crate::IResult::Done("", $input)
-      }
+        $crate::IResult::Done(&input[input.len()..], input)
+      };
+      res
     }
   );
 );
@@ -210,18 +217,21 @@ macro_rules! is_a_s (
 macro_rules! take_while_s (
   ($input:expr, $submac:ident!( $($args:tt)* )) => (
     {
-      let mut offset = $input.len();
-      for (o, c) in $input.char_indices() {
+      let input: &str = $input;
+
+      let mut offset = input.len();
+      for (o, c) in input.char_indices() {
         if !$submac!(c, $($args)*) {
           offset = o;
           break;
         }
       }
-      if offset < $input.len() {
-        $crate::IResult::Done(&$input[offset..], &$input[..offset])
+      let res: $crate::IResult<_,_> = if offset < input.len() {
+        $crate::IResult::Done(&input[offset..], &input[..offset])
       } else {
-        $crate::IResult::Done("", $input)
-      }
+        $crate::IResult::Done(&input[input.len()..], input)
+      };
+      res
     }
   );
   ($input:expr, $f:expr) => (
@@ -249,20 +259,23 @@ macro_rules! take_while_s (
 macro_rules! take_while1_s (
   ($input:expr, $submac:ident!( $($args:tt)* )) => (
     {
-      let mut offset = $input.len();
-      for (o, c) in $input.char_indices() {
+      let input: &str = $input;
+
+      let mut offset = input.len();
+      for (o, c) in input.char_indices() {
         if !$submac!(c, $($args)*) {
           offset = o;
           break;
         }
       }
-      if offset == 0 {
-        $crate::IResult::Error($crate::Err::Position($crate::ErrorKind::TakeWhile1Str,$input))
-      } else if offset < $input.len() {
-        $crate::IResult::Done(&$input[offset..], &$input[..offset])
+      let res: $crate::IResult<_,_> = if offset == 0 {
+        $crate::IResult::Error(error_position!($crate::ErrorKind::TakeWhile1Str,input))
+      } else if offset < input.len() {
+        $crate::IResult::Done(&input[offset..], &input[..offset])
       } else {
-        $crate::IResult::Done("", $input)
-      }
+        $crate::IResult::Done(&input[input.len()..], input)
+      };
+      res
     }
   );
   ($input:expr, $f:expr) => (
@@ -280,18 +293,21 @@ macro_rules! take_till_s (
   ($input:expr, $submac:ident!( $($args:tt)* )) => (
 
     {
-      let mut offset = $input.len();
-      for (o, c) in $input.char_indices() {
+      let input: &str = $input;
+
+      let mut offset = input.len();
+      for (o, c) in input.char_indices() {
         if $submac!(c, $($args)*) {
             offset = o;
             break;
         }
       }
-      if offset < $input.len() {
-        $crate::IResult::Done(&$input[offset..], &$input[..offset])
+      let res: $crate::IResult<_,_> = if offset < input.len() {
+        $crate::IResult::Done(&input[offset..], &input[..offset])
       } else {
-        $crate::IResult::Done("", $input)
-      }
+        $crate::IResult::Done(&input[input.len()..], input)
+      };
+      res
     }
   );
   ($input:expr, $f:expr) => (
@@ -305,6 +321,8 @@ macro_rules! take_till_s (
 macro_rules! take_until_and_consume_s (
   ($input:expr, $substr:expr) => (
     {
+      let input: &str = $input;
+
       #[inline(always)]
       fn shift_window_and_cmp(window: & mut ::std::vec::Vec<char>, c: char, substr_vec: & ::std::vec::Vec<char>) -> bool {
         window.push(c);
@@ -313,14 +331,15 @@ macro_rules! take_until_and_consume_s (
         }
         window == substr_vec
       }
-      let res: $crate::IResult<_, _> = if $substr.len() > $input.len() {
+
+      let res: $crate::IResult<_, _> = if $substr.len() > input.len() {
         $crate::IResult::Incomplete($crate::Needed::Size($substr.len()))
       } else {
         let substr_vec: ::std::vec::Vec<char> = $substr.chars().collect();
         let mut window: ::std::vec::Vec<char> = vec![];
-        let mut offset = $input.len();
+        let mut offset = input.len();
         let mut parsed = false;
-        for (o, c) in $input.char_indices() {
+        for (o, c) in input.char_indices() {
             if parsed {
                 // The easiest way to get the byte offset of the char after the found string
                 offset = o;
@@ -331,13 +350,13 @@ macro_rules! take_until_and_consume_s (
             }
         }
         if parsed {
-          if offset < $input.len() {
-            $crate::IResult::Done(&$input[offset..], &$input[..offset])
+          if offset < input.len() {
+            $crate::IResult::Done(&input[offset..], &input[..offset])
           } else {
-            $crate::IResult::Done("", $input)
+            $crate::IResult::Done(&input[input.len()..], input)
           }
         } else {
-          $crate::IResult::Error($crate::Err::Position($crate::ErrorKind::TakeUntilAndConsumeStr,$input))
+          $crate::IResult::Error(error_position!($crate::ErrorKind::TakeUntilAndConsumeStr,input))
         }
       };
       res
@@ -351,6 +370,8 @@ macro_rules! take_until_and_consume_s (
 macro_rules! take_until_s (
   ($input:expr, $substr:expr) => (
     {
+      let input: &str = $input;
+
       #[inline(always)]
       fn shift_window_and_cmp(window: & mut Vec<char>, c: char, substr_vec: &Vec<char>) -> bool {
         window.push(c);
@@ -359,14 +380,14 @@ macro_rules! take_until_s (
         }
         window == substr_vec
       }
-      let res: $crate::IResult<&str, &str> = if $substr.len() > $input.len() {
+      let res: $crate::IResult<&str, &str> = if $substr.len() > input.len() {
         $crate::IResult::Incomplete($crate::Needed::Size($substr.len()))
       } else {
         let substr_vec: Vec<char> = $substr.chars().collect();
         let mut window: Vec<char> = vec![];
-        let mut offset = $input.len();
+        let mut offset = input.len();
         let mut parsed = false;
-        for (o, c) in $input.char_indices() {
+        for (o, c) in input.char_indices() {
             if shift_window_and_cmp(& mut window, c, &substr_vec) {
                 parsed = true;
                 window.pop();
@@ -378,9 +399,9 @@ macro_rules! take_until_s (
             }
         }
         if parsed {
-          $crate::IResult::Done(&$input[offset..], &$input[..offset])
+          $crate::IResult::Done(&input[offset..], &input[..offset])
         } else {
-          $crate::IResult::Error($crate::Err::Position($crate::ErrorKind::TakeUntilStr,$input))
+          $crate::IResult::Error(error_position!($crate::ErrorKind::TakeUntilStr,input))
         }
       };
       res
@@ -489,7 +510,6 @@ mod test {
     }
 
   use internal::IResult::{Done, Error};
-  use internal::Err::Position;
   use util::ErrorKind;
 
   pub fn is_alphabetic(c:char) -> bool {
@@ -517,10 +537,10 @@ mod test {
     let c = "abcd123";
     let d = "123";
 
-    assert_eq!(f(&a[..]), Error(Position(ErrorKind::TakeWhile1Str, &""[..])));
+    assert_eq!(f(&a[..]), Error(error_position!(ErrorKind::TakeWhile1Str, &""[..])));
     assert_eq!(f(&b[..]), Done(&a[..], &b[..]));
     assert_eq!(f(&c[..]), Done(&"123"[..], &b[..]));
-    assert_eq!(f(&d[..]), Error(Position(ErrorKind::TakeWhile1Str, &d[..])));
+    assert_eq!(f(&d[..]), Error(error_position!(ErrorKind::TakeWhile1Str, &d[..])));
   }
 
   #[test]

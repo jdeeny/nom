@@ -1,4 +1,9 @@
-use internal::{IResult,Err};
+
+#[cfg(feature = "verbose-errors")]
+use internal::IResult;
+
+#[cfg(feature = "verbose-errors")]
+use verbose_errors::Err;
 
 #[cfg(not(feature = "core"))]
 use std::collections::HashMap;
@@ -10,10 +15,13 @@ use std::string::ToString;
 
 /// useful functions to calculate the offset between slices and show a hexdump of a slice
 #[cfg(not(feature = "core"))]
-pub trait HexDisplay {
+pub trait Offset {
   /// offset between the first byte of self and the first byte of the argument
-  fn offset(&self, second:&[u8]) -> usize;// OFFSET SHOULD GO TO ITS OWN TRAIT
+  fn offset(&self, second:&Self) -> usize;
+}
 
+#[cfg(not(feature = "core"))]
+pub trait HexDisplay {
   /// Converts the value of `self` to a hex dump, returning the owned
   /// string.
   fn to_hex(&self, chunk_size: usize) -> String;
@@ -139,14 +147,17 @@ impl<'a> IterIndices for &'a str {
 static CHARS: &'static[u8] = b"0123456789abcdef";
 
 #[cfg(not(feature = "core"))]
-impl HexDisplay for [u8] {
+impl Offset for [u8] {
   fn offset(&self, second:&[u8]) -> usize {
     let fst = self.as_ptr();
     let snd = second.as_ptr();
 
     snd as usize - fst as usize
   }
+}
 
+#[cfg(not(feature = "core"))]
+impl HexDisplay for [u8] {
   #[allow(unused_variables)]
   fn to_hex(&self, chunk_size: usize) -> String {
     self.to_hex_from(chunk_size, 0)
@@ -278,6 +289,7 @@ macro_rules! dbg_dmp (
   );
 );
 
+#[cfg(feature = "verbose-errors")]
 pub fn error_to_list<P,E:Clone>(e:&Err<P,E>) -> Vec<ErrorKind<E>> {
   let mut v:Vec<ErrorKind<E>> = Vec::new();
   let mut err = e;
@@ -295,15 +307,18 @@ pub fn error_to_list<P,E:Clone>(e:&Err<P,E>) -> Vec<ErrorKind<E>> {
   }
 }
 
+#[cfg(feature = "verbose-errors")]
 pub fn compare_error_paths<P,E:Clone+PartialEq>(e1:&Err<P,E>, e2:&Err<P,E>) -> bool {
   error_to_list(e1) == error_to_list(e2)
 }
 
 
 #[cfg(not(feature = "core"))]
+#[cfg(feature = "verbose-errors")]
 use std::hash::Hash;
 
 #[cfg(not(feature = "core"))]
+#[cfg(feature = "verbose-errors")]
 pub fn add_error_pattern<'a,I,O,E: Clone+Hash+Eq>(h: &mut HashMap<Vec<ErrorKind<E>>, &'a str>, res: IResult<I,O,E>, message: &'a str) -> bool {
   if let IResult::Error(e) = res {
     h.insert(error_to_list(&e), message);
@@ -321,6 +336,7 @@ pub fn slice_to_offsets(input: &[u8], s: &[u8]) -> (usize, usize) {
 }
 
 #[cfg(not(feature = "core"))]
+#[cfg(feature = "verbose-errors")]
 pub fn prepare_errors<O,E: Clone>(input: &[u8], res: IResult<&[u8],O,E>) -> Option<Vec<(ErrorKind<E>, usize, usize)> > {
   if let IResult::Error(e) = res {
     let mut v:Vec<(ErrorKind<E>, usize, usize)> = Vec::new();
@@ -354,6 +370,7 @@ pub fn prepare_errors<O,E: Clone>(input: &[u8], res: IResult<&[u8],O,E>) -> Opti
 }
 
 #[cfg(not(feature = "core"))]
+#[cfg(feature = "verbose-errors")]
 pub fn print_error<O,E:Clone>(input: &[u8], res: IResult<&[u8],O,E>) {
   if let Some(v) = prepare_errors(input, res) {
     let colors = generate_colors(&v);
@@ -366,6 +383,7 @@ pub fn print_error<O,E:Clone>(input: &[u8], res: IResult<&[u8],O,E>) {
 }
 
 #[cfg(not(feature = "core"))]
+#[cfg(feature = "verbose-errors")]
 pub fn generate_colors<E>(v: &[(ErrorKind<E>, usize, usize)]) -> HashMap<u32, u8> {
   let mut h: HashMap<u32, u8> = HashMap::new();
   let mut color = 0;
@@ -440,6 +458,7 @@ pub fn print_codes(colors: HashMap<u32, u8>, names: HashMap<u32, &str>) -> Strin
 }
 
 #[cfg(not(feature = "core"))]
+#[cfg(feature = "verbose-errors")]
 pub fn print_offsets<E>(input: &[u8], from: usize, offsets: &[(ErrorKind<E>, usize, usize)]) -> String {
   let mut v = Vec::with_capacity(input.len() * 3);
   let mut i = from;
@@ -642,7 +661,8 @@ pub enum ErrorKind<E=u32> {
   ManyMN,
   TakeUntilAndConsumeStr,
   TakeUntilStr,
-  Not
+  Not,
+  Permutation,
 }
 
 pub fn error_to_u32<E>(e: &ErrorKind<E>) -> u32 {
@@ -702,6 +722,7 @@ pub fn error_to_u32<E>(e: &ErrorKind<E>) -> u32 {
     ErrorKind::OctDigit                  => 61,
     ErrorKind::Many0                     => 62,
     ErrorKind::Not                       => 63,
+    ErrorKind::Permutation               => 64,
   }
 }
 
@@ -763,6 +784,7 @@ pub fn error_to_u32<E>(e: &ErrorKind<E>) -> u32 {
         ErrorKind::TakeUntilStr              => "Take until on strings",
         ErrorKind::OctDigit                  => "Octal digit",
         ErrorKind::Not                       => "Negation",
+        ErrorKind::Permutation               => "Permutation",
       }
 
     }

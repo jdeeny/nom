@@ -110,14 +110,27 @@ mod std {
 }
 
 pub use self::util::*;
+
+#[cfg(feature = "verbose-errors")]
+pub use self::verbose_errors::*;
+
+#[cfg(not(feature = "verbose-errors"))]
+pub use self::simple_errors::*;
+
 pub use self::internal::*;
 pub use self::macros::*;
+pub use self::branch::*;
+pub use self::sequence::*;
+pub use self::multi::*;
 pub use self::methods::*;
 pub use self::bytes::*;
 pub use self::bits::*;
 
 pub use self::nom::*;
 pub use self::character::*;
+
+#[cfg(not(feature = "core"))]
+pub use self::whitespace::*;
 
 #[cfg(feature = "regexp")]
 pub use self::regexp::*;
@@ -130,14 +143,26 @@ pub use self::stream::*;
 pub use self::str::*;
 
 #[macro_use] mod util;
-mod internal;
+
+#[cfg(feature = "verbose-errors")] #[macro_use] mod verbose_errors;
+
+#[cfg(not(feature = "verbose-errors"))] #[macro_use] mod simple_errors;
+
+#[macro_use] mod internal;
 #[macro_use] mod macros;
+#[macro_use] mod branch;
+#[macro_use] mod sequence;
+#[macro_use] mod multi;
 #[macro_use] mod methods;
 #[macro_use] mod bytes;
 #[macro_use] mod bits;
 
 #[macro_use] mod nom;
 #[macro_use] mod character;
+
+#[macro_use]
+#[cfg(not(feature = "core"))]
+mod whitespace;
 
 #[cfg(feature = "regexp")]
 #[macro_use] mod regexp;
